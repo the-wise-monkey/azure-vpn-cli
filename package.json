@@ -3,6 +3,6 @@
   "version": "0.0.1",
   "description": "CLI wrapper for Azure VPN Client on Windows",
   "scripts": {
-    "test": "powershell -ExecutionPolicy Bypass -Command \"Invoke-Pester .\\vpn.tests.ps1\""
+    "test": "pwsh -ExecutionPolicy Bypass -Command \"Import-Module Pester -MinimumVersion 5.0; Invoke-Pester .\\vpn.tests.ps1\""
   }
 }

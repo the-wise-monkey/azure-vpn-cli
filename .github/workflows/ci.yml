@@ -12,8 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Pester 5
+        shell: pwsh
+        run: Install-Module Pester -MinimumVersion 5.0 -Force -Scope CurrentUser -SkipPublisherCheck
+
       - name: Run Pester tests
-        shell: powershell
+        shell: pwsh
         run: |
+          Import-Module Pester -MinimumVersion 5.0
           $result = Invoke-Pester ./vpn.tests.ps1 -PassThru
           if ($result.FailedCount -gt 0) { exit 1 }
