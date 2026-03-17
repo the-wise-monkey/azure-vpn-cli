@@ -1,5 +1,7 @@
 # AzureVPN-CLI
 
+[![CI](https://github.com/the-wise-monkey/azure-vpn-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/the-wise-monkey/azure-vpn-cli/actions/workflows/ci.yml)
+
 A command-line interface for the [Azure VPN Client](https://apps.microsoft.com/detail/9np355qt2sqb) on Windows. Automates connect, disconnect, import, export, and status operations that would otherwise require clicking through the GUI.
 
 ## Install
