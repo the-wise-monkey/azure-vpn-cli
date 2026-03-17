@@ -28,7 +28,7 @@ vpn <name> connect            Connect (waits for sign-in if needed)
 vpn <name> disconnect         Disconnect
 vpn <name> status             Show connection status via rasdial
 vpn export <name>             Export profile XML to Desktop
-vpn import <alias>            Import from Desktop (vnet-bkly-<alias>.AzureVpnProfile.xml)
+vpn import <name>             Import <name>.AzureVpnProfile.xml from Desktop
 vpn setup                     Re-check and install prerequisites
 ```
 
@@ -36,26 +36,26 @@ vpn setup                     Re-check and install prerequisites
 
 ```powershell
 vpn list
-#   vnet-bkly-cert                       Connected
-#   vnet-bkly-prod                       Disconnected
+#   my-vpn                       Connected
+#   vpn-prod                       Disconnected
 
-vpn vnet-bkly-cert connect
+vpn my-vpn connect
 # Connected
 
-vpn vnet-bkly-cert connect
+vpn my-vpn connect
 # Already connected.
 
-vpn vnet-bkly-cert disconnect
+vpn my-vpn disconnect
 # Disconnected
 
-vpn vnet-bkly-cert status
+vpn my-vpn status
 # Disconnected
 
-vpn export vnet-bkly-cert
-# Exported to C:\Users\me\Desktop\vnet-bkly-cert.AzureVpnProfile.xml
+vpn export my-vpn
+# Exported to C:\Users\me\Desktop\my-vpn.AzureVpnProfile.xml
 
-vpn import cert
-# Importing vnet-bkly-cert from Desktop...
+vpn import my-vpn
+# Importing my-vpn from Desktop...
 # Imported
 ```
 
@@ -64,12 +64,12 @@ vpn import cert
 Add `-d` to any command to see what's happening:
 
 ```powershell
-vpn vnet-bkly-cert connect -d
-# [12:00:09.627] Args: Arg1='vnet-bkly-cert' Arg2='connect'
-# [12:00:09.691] Invoke-VpnAction: action=connect name=vnet-bkly-cert
+vpn my-vpn connect -d
+# [12:00:09.627] Args: Arg1='my-vpn' Arg2='connect'
+# [12:00:09.691] Invoke-VpnAction: action=connect name=my-vpn
 # [12:00:10.386] UI Automation window: True
-# [12:00:10.395] Looking for profile 'vnet-bkly-cert'...
-# [12:00:11.964] Found ListItem: 'vnet-bkly-certDisconnected'
+# [12:00:10.395] Looking for profile 'my-vpn'...
+# [12:00:11.964] Found ListItem: 'my-vpnDisconnected'
 # [12:00:12.886] Selecting profile...
 # [12:00:16.489] Found button: 'Connect Connects the VPN connection'
 # [12:00:16.491] Clicking 'connect' button...

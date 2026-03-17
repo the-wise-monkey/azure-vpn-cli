@@ -440,15 +440,15 @@ function Show-Help {
     Write-Host "    vpn <name> disconnect     Disconnect a profile"
     Write-Host "    vpn <name> status         Show connection status"
     Write-Host "    vpn list                  List all profiles in Azure VPN Client"
-    Write-Host "    vpn import <alias>        Import from Desktop (vnet-bkly-<alias>.AzureVpnProfile.xml)"
+    Write-Host "    vpn import <name>         Import <name>.AzureVpnProfile.xml from Desktop"
     Write-Host "    vpn export <name>         Export profile XML to Desktop"
     Write-Host "    vpn setup                 Re-check and install prerequisites"
     Write-Host ""
     Write-Host "  Examples:"
     Write-Host "    vpn list"
-    Write-Host "    vpn vnet-bkly-cert connect"
-    Write-Host "    vpn vnet-bkly-cert status"
-    Write-Host "    vpn import cert"
+    Write-Host "    vpn my-vpn connect"
+    Write-Host "    vpn my-vpn status"
+    Write-Host "    vpn import my-vpn"
     Write-Host ""
 }
 
@@ -519,26 +519,25 @@ switch ($Arg1) {
         Write-Host "Exported to $outPath"
     }
 
-    # ── vpn import <alias> ─────────────────────────────────
+    # ── vpn import <name> ─────────────────────────────────
     "import" {
         Log "Command: import"
-        if (-not $Arg2) { Write-Host "Usage: vpn import <alias>"; $exitCode = 1; break }
-        $alias    = $Arg2
-        $fullName = "vnet-bkly-$alias"
-        Log "Alias: $alias, fullName: $fullName"
+        if (-not $Arg2) { Write-Host "Usage: vpn import <name>"; $exitCode = 1; break }
+        $importName = $Arg2
+        Log "Import name: $importName"
 
         $profiles = @(Get-VpnProfiles)
-        if ($profiles -contains $fullName) {
-            Log "Profile '$fullName' already in phonebook, skipping"
-            Write-Host "Profile '$fullName' already exists."
+        if ($profiles -contains $importName) {
+            Log "Profile '$importName' already in phonebook, skipping"
+            Write-Host "Profile '$importName' already exists."
             break
         }
 
-        Write-Host "Importing $fullName from Desktop..."
-        $code = Invoke-VpnAction "import" $fullName
+        Write-Host "Importing $importName from Desktop..."
+        $code = Invoke-VpnAction "import" $importName
         if ($code -ne 0) {
             Log "Import failed with code $code"
-            Write-Host "Import failed. Make sure '$fullName.AzureVpnProfile.xml' is on your Desktop."
+            Write-Host "Import failed. Make sure '$importName.AzureVpnProfile.xml' is on your Desktop."
             $exitCode = 1; break
         }
 

@@ -107,34 +107,34 @@ Describe "vpn list" {
     }
 
     It "shows profiles from phonebook with live status" {
-        Set-TestPhonebook @("vnet-bkly-prod", "vnet-bkly-cert")
-        Set-TestActive @("vnet-bkly-cert")
+        Set-TestPhonebook @("vpn-prod", "my-vpn")
+        Set-TestActive @("my-vpn")
         $r = Invoke-Vpn "list"
-        $r.Output | Should -Match "vnet-bkly-prod"
+        $r.Output | Should -Match "vpn-prod"
         $r.Output | Should -Match "Disconnected"
-        $r.Output | Should -Match "vnet-bkly-cert"
+        $r.Output | Should -Match "my-vpn"
         $r.Output | Should -Match "Connected"
     }
 
     It "shows all disconnected when no active connections" {
-        Set-TestPhonebook @("vnet-bkly-prod", "vnet-bkly-cert")
+        Set-TestPhonebook @("vpn-prod", "my-vpn")
         Set-TestNoActive
         $r = Invoke-Vpn "list"
-        $r.Output | Should -Match "vnet-bkly-prod.*Disconnected"
-        $r.Output | Should -Match "vnet-bkly-cert.*Disconnected"
+        $r.Output | Should -Match "vpn-prod.*Disconnected"
+        $r.Output | Should -Match "my-vpn.*Disconnected"
     }
 
     It "shows multiple profiles" {
-        Set-TestPhonebook @("vnet-bkly-prod", "vnet-bkly-cert", "vnet-bkly-token")
+        Set-TestPhonebook @("vpn-prod", "my-vpn", "vpn-dev")
         Set-TestNoActive
         $r = Invoke-Vpn "list"
-        $r.Output | Should -Match "vnet-bkly-prod"
-        $r.Output | Should -Match "vnet-bkly-cert"
-        $r.Output | Should -Match "vnet-bkly-token"
+        $r.Output | Should -Match "vpn-prod"
+        $r.Output | Should -Match "my-vpn"
+        $r.Output | Should -Match "vpn-dev"
     }
 
     It "sorts profiles alphabetically" {
-        Set-TestPhonebook @("vnet-bkly-zulu", "vnet-bkly-alpha")
+        Set-TestPhonebook @("vpn-zulu", "vpn-alpha")
         Set-TestNoActive
         $r = Invoke-Vpn "list"
         $r.Output | Should -Match "(?s)alpha.*zulu"
@@ -149,37 +149,37 @@ Describe "vpn export" {
     }
 
     It "errors when profile not found" {
-        Set-TestPhonebook @("vnet-bkly-cert")
+        Set-TestPhonebook @("my-vpn")
         $r = Invoke-Vpn "export" "nope"
         $r.Output   | Should -Match "not found"
         $r.ExitCode | Should -Be 1
     }
 
     It "exports profile XML to Desktop" {
-        $testXml = '<azvpnprofile><name>vnet-bkly-cert</name></azvpnprofile>'
-        Set-TestPhonebook @("vnet-bkly-cert") @{ "vnet-bkly-cert" = $testXml }
-        $r = Invoke-Vpn "export" "vnet-bkly-cert"
+        $testXml = '<azvpnprofile><name>my-vpn</name></azvpnprofile>'
+        Set-TestPhonebook @("my-vpn") @{ "my-vpn" = $testXml }
+        $r = Invoke-Vpn "export" "my-vpn"
         $r.Output   | Should -Match "Exported to"
         $r.ExitCode | Should -Be 0
 
-        $outPath = Join-Path ([Environment]::GetFolderPath('Desktop')) "vnet-bkly-cert.AzureVpnProfile.xml"
+        $outPath = Join-Path ([Environment]::GetFolderPath('Desktop')) "my-vpn.AzureVpnProfile.xml"
         Test-Path $outPath | Should -Be $true
         $content = Get-Content $outPath -Raw
         $content | Should -Match '<azvpnprofile>'
-        $content | Should -Match 'vnet-bkly-cert'
+        $content | Should -Match 'my-vpn'
         Remove-Item $outPath
     }
 
     It "fails when profile has no ThirdPartyProfileInfo" {
-        Set-TestPhonebook @("vnet-bkly-cert")
-        $r = Invoke-Vpn "export" "vnet-bkly-cert"
+        Set-TestPhonebook @("my-vpn")
+        $r = Invoke-Vpn "export" "my-vpn"
         $r.Output   | Should -Match "Failed to extract"
         $r.ExitCode | Should -Be 1
     }
 
     It "fails when phonebook is missing" {
         Clear-TestPhonebook
-        $r = Invoke-Vpn "export" "vnet-bkly-cert"
+        $r = Invoke-Vpn "export" "my-vpn"
         $r.Output   | Should -Match "not found"
         $r.ExitCode | Should -Be 1
     }
@@ -194,21 +194,21 @@ Describe "vpn import" {
 
     It "imports a new profile" {
         Set-TestPhonebook @()
-        $r = Invoke-Vpn "import" "cert"
+        $r = Invoke-Vpn "import" "my-vpn"
         $r.Output   | Should -Match "Imported"
         $r.ExitCode | Should -Be 0
     }
 
     It "skips when profile already in phonebook" {
-        Set-TestPhonebook @("vnet-bkly-cert")
-        $r = Invoke-Vpn "import" "cert"
+        Set-TestPhonebook @("my-vpn")
+        $r = Invoke-Vpn "import" "my-vpn"
         $r.Output   | Should -Match "already exists"
         $r.ExitCode | Should -Be 0
     }
 
     It "reports failure when action fails" {
         Set-TestPhonebook @()
-        $r = Invoke-Vpn "import" "cert" -Fail
+        $r = Invoke-Vpn "import" "my-vpn" -Fail
         $r.Output   | Should -Match "Import failed"
         $r.ExitCode | Should -Be 1
     }
@@ -216,14 +216,14 @@ Describe "vpn import" {
 
 Describe "vpn [name] connect" {
     It "succeeds with exit code 0" {
-        Set-TestPhonebook @("vnet-bkly-cert")
-        $r = Invoke-Vpn "vnet-bkly-cert" "connect"
+        Set-TestPhonebook @("my-vpn")
+        $r = Invoke-Vpn "my-vpn" "connect"
         $r.ExitCode | Should -Be 0
     }
 
     It "reports failure when action fails" {
-        Set-TestPhonebook @("vnet-bkly-cert")
-        $r = Invoke-Vpn "vnet-bkly-cert" "connect" -Fail
+        Set-TestPhonebook @("my-vpn")
+        $r = Invoke-Vpn "my-vpn" "connect" -Fail
         $r.Output   | Should -Match "Action failed"
         $r.ExitCode | Should -Be 1
     }
@@ -231,14 +231,14 @@ Describe "vpn [name] connect" {
 
 Describe "vpn [name] disconnect" {
     It "succeeds with exit code 0" {
-        Set-TestPhonebook @("vnet-bkly-cert")
-        $r = Invoke-Vpn "vnet-bkly-cert" "disconnect"
+        Set-TestPhonebook @("my-vpn")
+        $r = Invoke-Vpn "my-vpn" "disconnect"
         $r.ExitCode | Should -Be 0
     }
 
     It "reports failure when action fails" {
-        Set-TestPhonebook @("vnet-bkly-cert")
-        $r = Invoke-Vpn "vnet-bkly-cert" "disconnect" -Fail
+        Set-TestPhonebook @("my-vpn")
+        $r = Invoke-Vpn "my-vpn" "disconnect" -Fail
         $r.Output   | Should -Match "Action failed"
         $r.ExitCode | Should -Be 1
     }
@@ -246,17 +246,17 @@ Describe "vpn [name] disconnect" {
 
 Describe "vpn [name] status" {
     It "shows Connected when profile is active" {
-        Set-TestPhonebook @("vnet-bkly-cert")
-        Set-TestActive @("vnet-bkly-cert")
-        $r = Invoke-Vpn "vnet-bkly-cert" "status"
+        Set-TestPhonebook @("my-vpn")
+        Set-TestActive @("my-vpn")
+        $r = Invoke-Vpn "my-vpn" "status"
         $r.Output   | Should -Match "Connected"
         $r.ExitCode | Should -Be 0
     }
 
     It "shows Disconnected when profile is not active" {
-        Set-TestPhonebook @("vnet-bkly-cert")
+        Set-TestPhonebook @("my-vpn")
         Set-TestNoActive
-        $r = Invoke-Vpn "vnet-bkly-cert" "status"
+        $r = Invoke-Vpn "my-vpn" "status"
         $r.Output   | Should -Match "Disconnected"
         $r.ExitCode | Should -Be 0
     }
@@ -273,28 +273,28 @@ Describe "vpn setup" {
 
 Describe "vpn error handling" {
     It "errors when profile does not exist in phonebook" {
-        Set-TestPhonebook @("vnet-bkly-cert")
+        Set-TestPhonebook @("my-vpn")
         $r = Invoke-Vpn "nope" "connect"
         $r.Output   | Should -Match "not found"
         $r.ExitCode | Should -Be 1
     }
 
     It "errors on unknown action" {
-        Set-TestPhonebook @("vnet-bkly-cert")
-        $r = Invoke-Vpn "vnet-bkly-cert" "restart"
+        Set-TestPhonebook @("my-vpn")
+        $r = Invoke-Vpn "my-vpn" "restart"
         $r.Output   | Should -Match "Unknown action"
         $r.ExitCode | Should -Be 1
     }
 
     It "errors for status on unknown profile" {
-        Set-TestPhonebook @("vnet-bkly-cert")
+        Set-TestPhonebook @("my-vpn")
         $r = Invoke-Vpn "nope" "status"
         $r.Output   | Should -Match "not found"
         $r.ExitCode | Should -Be 1
     }
 
     It "errors for disconnect on unknown profile" {
-        Set-TestPhonebook @("vnet-bkly-cert")
+        Set-TestPhonebook @("my-vpn")
         $r = Invoke-Vpn "nope" "disconnect"
         $r.Output   | Should -Match "not found"
         $r.ExitCode | Should -Be 1
