@@ -38,8 +38,8 @@ vpn setup                     Re-check and install prerequisites
 
 ```powershell
 vpn list
-#   my-vpn                       Connected
-#   vpn-prod                       Disconnected
+#   my-vpn                     Connected
+#   vpn-prod                   Disconnected
 
 vpn my-vpn connect
 # Connected
