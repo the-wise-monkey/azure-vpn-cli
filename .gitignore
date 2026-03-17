@@ -1,0 +1,4 @@
+Output/
+.setup-done
+node_modules/
+*.exe

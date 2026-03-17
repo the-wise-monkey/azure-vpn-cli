@@ -1,0 +1,8 @@
+{
+  "name": "azure-vpn-cli",
+  "version": "0.0.1",
+  "description": "CLI wrapper for Azure VPN Client on Windows",
+  "scripts": {
+    "test": "powershell -ExecutionPolicy Bypass -Command \"Invoke-Pester .\\vpn.tests.ps1\""
+  }
+}
