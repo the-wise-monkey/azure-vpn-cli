@@ -44,17 +44,17 @@ jobs:
           New-Item -Path $manifestDir -ItemType Directory -Force | Out-Null
 
           @"
-          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.9.0.schema.json
+          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.12.0.schema.json
 
           PackageIdentifier: TheWiseMonkey.AzureVPN-CLI
           PackageVersion: ${version}
           DefaultLocale: en-US
           ManifestType: version
-          ManifestVersion: 1.9.0
+          ManifestVersion: 1.12.0
           "@ -replace '(?m)^ +','' | Set-Content "$manifestDir/TheWiseMonkey.AzureVPN-CLI.yaml"
 
           @"
-          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
+          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 
           PackageIdentifier: TheWiseMonkey.AzureVPN-CLI
           PackageVersion: ${version}
@@ -65,11 +65,11 @@ jobs:
               InstallerSha256: ${hash}
               Scope: user
           ManifestType: installer
-          ManifestVersion: 1.9.0
+          ManifestVersion: 1.12.0
           "@ -replace '(?m)^ +','' | Set-Content "$manifestDir/TheWiseMonkey.AzureVPN-CLI.installer.yaml"
 
           @"
-          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
+          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json
 
           PackageIdentifier: TheWiseMonkey.AzureVPN-CLI
           PackageVersion: ${version}
@@ -88,7 +88,7 @@ jobs:
             - cli
             - networking
           ManifestType: defaultLocale
-          ManifestVersion: 1.9.0
+          ManifestVersion: 1.12.0
           "@ -replace '(?m)^ +','' | Set-Content "$manifestDir/TheWiseMonkey.AzureVPN-CLI.locale.en-US.yaml"
 
       - name: Submit to winget
