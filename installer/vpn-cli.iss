@@ -19,8 +19,7 @@ ChangesEnvironment=yes
 UninstallDisplayName=AzureVPN-CLI
 
 [Files]
-Source: "..\vpn.ps1"; DestDir: "{app}"; Flags: ignoreversion
-Source: "vpn.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\src\bin\Release\net48\vpn.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Registry]
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \

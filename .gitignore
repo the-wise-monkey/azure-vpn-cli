@@ -2,4 +2,7 @@ Output/
 .setup-done
 node_modules/
 *.exe
+*.pdb
 .claude/
+bin/
+obj/
