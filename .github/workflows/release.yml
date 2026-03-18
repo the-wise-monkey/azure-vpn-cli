@@ -32,19 +32,74 @@ jobs:
           files: Output/AzureVPN-CLI-${{ steps.version.outputs.version }}-setup.exe
           generate_release_notes: true
 
-      - name: Submit to winget
+      - name: Update winget manifest
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.version }}"
           $repo = "${{ github.repository }}"
           $installerUrl = "https://github.com/${repo}/releases/download/v${version}/AzureVPN-CLI-${version}-setup.exe"
+          $hash = (Get-FileHash "Output/AzureVPN-CLI-${version}-setup.exe" -Algorithm SHA256).Hash
+
+          $manifestDir = "winget-manifest/manifests/t/TheWiseMonkey/AzureVPN-CLI/${version}"
+          New-Item -Path $manifestDir -ItemType Directory -Force | Out-Null
+
+          @"
+          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.12.0.schema.json
+
+          PackageIdentifier: TheWiseMonkey.AzureVPN-CLI
+          PackageVersion: ${version}
+          DefaultLocale: en-US
+          ManifestType: version
+          ManifestVersion: 1.12.0
+          "@ -replace '(?m)^ +','' | Set-Content "$manifestDir/TheWiseMonkey.AzureVPN-CLI.yaml"
+
+          @"
+          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+
+          PackageIdentifier: TheWiseMonkey.AzureVPN-CLI
+          PackageVersion: ${version}
+          Installers:
+            - Architecture: x64
+              InstallerType: inno
+              InstallerUrl: ${installerUrl}
+              InstallerSha256: ${hash}
+              Scope: user
+          ManifestType: installer
+          ManifestVersion: 1.12.0
+          "@ -replace '(?m)^ +','' | Set-Content "$manifestDir/TheWiseMonkey.AzureVPN-CLI.installer.yaml"
+
+          @"
+          # yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json
+
+          PackageIdentifier: TheWiseMonkey.AzureVPN-CLI
+          PackageVersion: ${version}
+          PackageLocale: en-US
+          Publisher: The Wise Monkey
+          PublisherUrl: https://github.com/the-wise-monkey
+          PackageName: AzureVPN-CLI
+          PackageUrl: https://github.com/the-wise-monkey/azure-vpn-cli
+          License: MIT
+          LicenseUrl: https://github.com/the-wise-monkey/azure-vpn-cli/blob/main/LICENSE
+          ShortDescription: CLI wrapper for Azure VPN Client on Windows
+          Description: Command-line interface for the Azure VPN Client on Windows. Automates connect, disconnect, import, export, and status operations using UI Automation.
+          Tags:
+            - vpn
+            - azure
+            - cli
+            - networking
+          ManifestType: defaultLocale
+          ManifestVersion: 1.12.0
+          "@ -replace '(?m)^ +','' | Set-Content "$manifestDir/TheWiseMonkey.AzureVPN-CLI.locale.en-US.yaml"
+
+      - name: Submit to winget
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $manifestDir = "winget-manifest/manifests/t/TheWiseMonkey/AzureVPN-CLI/${version}"
 
           Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
 
-          .\wingetcreate.exe update TheWiseMonkey.AzureVPN-CLI `
-            --urls $installerUrl `
-            --version $version `
-            --token ${{ secrets.WINGET_PAT }} `
-            --submit
+          .\wingetcreate.exe submit $manifestDir `
+            --token ${{ secrets.WINGET_PAT }}
         env:
           WINGET_PAT: ${{ secrets.WINGET_PAT }}
