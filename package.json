@@ -1,6 +1,6 @@
 {
   "name": "azure-vpn-cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "CLI wrapper for Azure VPN Client on Windows",
   "scripts": {
     "test": "dotnet test tests/VpnCli.Tests.csproj -c Release"
