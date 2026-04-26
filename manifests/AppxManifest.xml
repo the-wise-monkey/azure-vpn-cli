@@ -7,8 +7,8 @@
   IgnorableNamespaces="uap uap5 rescap">
 
   <Identity
-    Name="TheWiseMonkey.AzureVPNCLI"
-    Publisher="CN=TheWiseMonkey"
+    Name="TheWiseMonkey.AzureVPN-CLI"
+    Publisher="CN=C839D9F7-9E25-4DB5-A97D-C05E9BC0DEBF"
     Version="1.0.0.0"
     ProcessorArchitecture="x64" />
 

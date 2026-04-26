@@ -25,7 +25,7 @@ try {
         Add-AppxPackage -Path $msix -ForceApplicationShutdown -ErrorAction Stop
     }
 
-    Get-AppxPackage TheWiseMonkey.AzureVPNCLI | Select-Object Name, PackageFullName, PackageFamilyName, InstallLocation
+    Get-AppxPackage TheWiseMonkey.AzureVPN-CLI | Select-Object Name, PackageFullName, PackageFamilyName, InstallLocation
 }
 catch {
     Write-Error $_
