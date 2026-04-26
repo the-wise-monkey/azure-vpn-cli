@@ -1,7 +1,7 @@
 {
-  "name": "azure-vpn-cli",
+  "name": "azurevpn-cli",
   "version": "1.0.0",
-  "description": "CLI for Azure VPN profiles on Windows",
+  "description": "Manage Azure VPN profiles from the command line. Import, list, connect, disconnect, status, and export profiles without leaving your terminal.",
   "scripts": {
     "build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Build-Msix.ps1 -Version 1.0.0",
     "test": "dotnet test tests/VpnCli.Tests.csproj -c Release"
