@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using VpnCli;
 
 namespace VpnCli.Tests
@@ -15,72 +14,119 @@ namespace VpnCli.Tests
             return dir;
         }
 
-        internal static string WritePhonebook(string dir, string[] names, Dictionary<string, string> xmlData = null)
-        {
-            string pbkPath = Path.Combine(dir, "rasphone.pbk");
-            var sb = new StringBuilder();
-            foreach (var name in names)
-            {
-                sb.AppendLine($"[{name}]");
-                sb.AppendLine("Encoding=1");
-                if (xmlData != null && xmlData.ContainsKey(name))
-                {
-                    string hex = EncodeProfileXml(xmlData[name]);
-                    sb.AppendLine($"ThirdPartyProfileInfo={hex}");
-                }
-                sb.AppendLine();
-            }
-            File.WriteAllText(pbkPath, sb.ToString());
-            return pbkPath;
-        }
-
-        internal static string EncodeProfileXml(string xml)
-        {
-            var bytes = Encoding.Unicode.GetBytes(xml);
-            var sb = new StringBuilder(bytes.Length * 2);
-            foreach (var b in bytes)
-                sb.Append(b.ToString("X2"));
-            return sb.ToString();
-        }
-
-        internal static VpnCommands BuildCommands(
-            string pbkPath,
-            string activeOutput = "No connections",
-            int actionReturnCode = 0,
-            string exportDir = null)
+        internal static (VpnCommands cmds, StringWriter output, FakeHelper helper) Build(
+            string exportDir = null,
+            FakeHelper helper = null)
         {
             var output = new StringWriter();
-            return new VpnCommands(
-                pbkPath,
-                () => activeOutput,
-                (action, name) => actionReturnCode,
-                exportDir ?? Path.GetTempPath(),
-                output);
-        }
-
-        internal static string GetOutput(VpnCommands cmds)
-        {
-            // Access the TextWriter via reflection to get output
-            var field = typeof(VpnCommands).GetField("_output",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var writer = (StringWriter)field.GetValue(cmds);
-            return writer.ToString();
-        }
-
-        internal static (VpnCommands cmds, StringWriter output) Build(
-            string pbkPath,
-            string activeOutput = "No connections",
-            int actionReturnCode = 0,
-            string exportDir = null)
-        {
-            var output = new StringWriter();
+            helper = helper ?? new FakeHelper();
             var cmds = new VpnCommands(
-                pbkPath,
-                () => activeOutput,
-                (action, name) => actionReturnCode,
+                helper,
                 exportDir ?? Path.GetTempPath(),
                 output);
-            return (cmds, output);
+            return (cmds, output, helper);
+        }
+    }
+
+    internal class FakeHelper : IVpnHelperClient
+    {
+        public HelperResponse NextResponse { get; set; }
+        public string LastCommand { get; private set; }
+        public string LastName { get; private set; }
+        public string LastPath { get; private set; }
+        public string LastImportName { get; private set; }
+
+        public HelperResponse Health()
+        {
+            LastCommand = "health";
+            return Response();
+        }
+
+        public HelperResponse List()
+        {
+            LastCommand = "list";
+            return Response();
+        }
+
+        public HelperResponse Import(string xmlPath, string name)
+        {
+            LastCommand = "import";
+            LastPath = xmlPath;
+            LastImportName = name;
+            return Response(profile: name ?? "imported-vpn");
+        }
+
+        public HelperResponse Export(string name, string outputPath)
+        {
+            LastCommand = "export";
+            LastName = name;
+            LastPath = outputPath;
+            return Response(profile: name, path: outputPath);
+        }
+
+        public HelperResponse Status(string name)
+        {
+            LastCommand = "status";
+            LastName = name;
+            return Response(profile: name, status: "Disconnected");
+        }
+
+        public HelperResponse Connect(string name)
+        {
+            LastCommand = "connect";
+            LastName = name;
+            return Response(profile: name, status: "Connected");
+        }
+
+        public HelperResponse Disconnect(string name)
+        {
+            LastCommand = "disconnect";
+            LastName = name;
+            return Response(profile: name, status: "Disconnected");
+        }
+
+        public HelperResponse Delete(string name)
+        {
+            LastCommand = "delete";
+            LastName = name;
+            return Response(profile: name, status: "Deleted");
+        }
+
+        private HelperResponse Response(string profile = "my-vpn", string status = "Disconnected", string path = null)
+        {
+            if (NextResponse != null)
+            {
+                HelperResponse response = NextResponse;
+                NextResponse = null;
+                return response;
+            }
+
+            return new HelperResponse
+            {
+                Ok = true,
+                Code = "Ok",
+                Result = "Ok",
+                Profile = profile,
+                Status = status,
+                Path = path
+            };
+        }
+
+        internal void SetProfiles(params VpnProfileInfo[] profiles)
+        {
+            var response = new HelperResponse { Ok = true };
+            response.Profiles.AddRange(profiles);
+            NextResponse = response;
+        }
+
+        internal void Fail(string message = "failed")
+        {
+            NextResponse = new HelperResponse
+            {
+                Ok = false,
+                Code = "Failed",
+                Message = message
+            };
         }
     }
 }

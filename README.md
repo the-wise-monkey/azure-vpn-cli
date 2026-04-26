@@ -2,7 +2,25 @@
 
 [![CI](https://github.com/the-wise-monkey/azure-vpn-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/the-wise-monkey/azure-vpn-cli/actions/workflows/ci.yml)
 
-A command-line interface for the [Azure VPN Client](https://apps.microsoft.com/detail/9np355qt2sqb) on Windows. Automates connect, disconnect, import, export, and status operations that would otherwise require clicking through the GUI.
+A command-line interface for the [Azure VPN Client](https://apps.microsoft.com/detail/9np355qt2sqb) on Windows.
+
+Version 1.0 removes UI Automation entirely. The unpackaged `vpn.exe` talks to a packaged MSIX helper named `VpnPackagedHelper`, and that helper owns the VPN profiles it creates through `Windows.Networking.Vpn.VpnManagementAgent`.
+
+## Product Model
+
+- Profiles must be imported into the packaged helper from a `.AzureVpnProfile.xml` file.
+- Existing profiles that already live inside the Azure VPN Client app are not controlled directly by this CLI unless you export their XML first and import that XML into the helper.
+- Connect, disconnect, status, list, import, export, and delete are helper-backed operations. The CLI does not click buttons, inspect the Azure VPN Client window, read `rasphone.pbk`, or call `rasdial`.
+- The helper creates `VpnPlugInProfile` entries that target the Azure VPN Client plug-in package `Microsoft.AzureVpn_8wekyb3d8bbwe`.
+
+See [Internal API investigation](docs/internal-api-investigation.md) for the tested alternatives and the reason this architecture replaced UI Automation.
+
+## Requirements
+
+- Windows 10/11.
+- Azure VPN Client installed from Microsoft Store.
+- `VpnPackagedHelper` installed or registered for the current user.
+- For development installs, Windows Developer Mode must be enabled before registering the loose MSIX package.
 
 ## Install
 
@@ -12,97 +30,115 @@ winget install TheWiseMonkey.AzureVPN-CLI
 
 Or download the installer from [Releases](https://github.com/the-wise-monkey/azure-vpn-cli/releases).
 
-## How it works
-
-- Reads VPN profiles directly from the Azure VPN Client's phonebook (`rasphone.pbk`), sorted alphabetically to match the UI
-- Checks live connection status via `rasdial`
-- Automates the GUI using [UI Automation](https://learn.microsoft.com/en-us/dotnet/framework/ui-automation/) — finds elements by name, no pixel coordinates
-- Detects sign-in prompts during connect, brings the window to the foreground centered on screen
-- The Azure VPN Client window is kept fully transparent during automation and always restored to full opacity on exit (even on errors or Ctrl+C)
-- Connect/disconnect are idempotent — running `connect` on an already-connected profile exits 0 with "Already connected."
-- Auto-installs the Azure VPN Client via `winget` on first run if missing
+The installer includes `vpn.exe` and the packaged helper. Helper registration can still be blocked by Windows policy or Microsoft capability restrictions for `networkingVpnProvider`; `vpn setup` reports that state explicitly.
 
 ## Commands
 
-```
-vpn list                      List all profiles with live connection status
-vpn <name> connect            Connect (waits for sign-in if needed)
-vpn <name> disconnect         Disconnect
-vpn <name> status             Show connection status via rasdial
-vpn export <name>             Export profile XML to Desktop
-vpn import <name>             Import <name>.AzureVpnProfile.xml from Desktop
-vpn setup                     Re-check and install prerequisites
+```text
+vpn import <profile.AzureVpnProfile.xml> [name]  Import XML into the packaged helper
+vpn import <name>                                Import Desktop\<name>.AzureVpnProfile.xml
+vpn list                                         List helper-owned profiles
+vpn <name> connect                               Connect a helper-owned profile
+vpn <name> disconnect                            Disconnect a helper-owned profile
+vpn <name> status                                Show helper-reported connection status
+vpn export <name> [profile.AzureVpnProfile.xml]  Export stored XML
+vpn delete <name>                                Delete a helper-owned profile
+vpn setup                                        Re-check prerequisites
 ```
 
 ## Examples
 
 ```powershell
+vpn import "$env:USERPROFILE\Desktop\my-vpn.AzureVpnProfile.xml"
+# Imported my-vpn
+
 vpn list
-#   my-vpn                     Connected
-#   vpn-prod                   Disconnected
+#   my-vpn                               Disconnected
 
 vpn my-vpn connect
 # Connected
 
-vpn my-vpn connect
-# Already connected.
+vpn my-vpn status
+# Connected
 
 vpn my-vpn disconnect
-# Disconnected
-
-vpn my-vpn status
 # Disconnected
 
 vpn export my-vpn
 # Exported to C:\Users\me\Desktop\my-vpn.AzureVpnProfile.xml
 
-vpn import my-vpn
-# Importing my-vpn from Desktop...
-# Imported
+vpn delete my-vpn
+# Deleted my-vpn
 ```
 
-## Debug mode
+## Debug Mode
 
-Add `-d` to any command to see what's happening:
+Add `-d` to any command to print timestamped CLI/helper invocation details:
 
 ```powershell
 vpn my-vpn connect -d
-# [12:00:09.627] Args: Arg1='my-vpn' Arg2='connect'
-# [12:00:09.691] Invoke-VpnAction: action=connect name=my-vpn
-# [12:00:10.386] UI Automation window: True
-# [12:00:10.395] Looking for profile 'my-vpn'...
-# [12:00:11.964] Found ListItem: 'my-vpnDisconnected'
-# [12:00:12.886] Selecting profile...
-# [12:00:16.489] Found button: 'Connect Connects the VPN connection'
-# [12:00:16.491] Clicking 'connect' button...
-# [12:00:20.542] Connected after 3s
-# Connected
 ```
 
-Debug mode:
-- Shows timestamped log lines for every step
-- Keeps the Azure VPN Client window visible at (100, 100) instead of transparent
-- Adds 1.5s pauses between UI Automation steps so you can follow along
+## Development Build
+
+Build the packaged helper:
+
+```powershell
+.\tools\vpn-packaged-helper\scripts\Build-Helper.ps1 -Version 1.0.0
+```
+
+Register the helper for local development:
+
+```powershell
+.\tools\vpn-packaged-helper\scripts\Install-Helper.ps1 -RegisterLoose
+```
+
+Build the CLI:
+
+```powershell
+dotnet build src/vpn.csproj -c Release
+```
+
+The compiled executable is written to `src/bin/Release/net48/vpn.exe`.
+
+Run a local prerequisite check:
+
+```powershell
+src\bin\Release\net48\vpn.exe setup
+```
 
 ## Testing
 
-```
+Run the unit tests with npm:
+
+```powershell
 npm test
 ```
 
-Runs 28 [Pester 5](https://pester.dev/) tests covering all CLI commands and error paths. UI Automation is mocked so tests run without the Azure VPN Client.
+Or call `dotnet` directly:
 
-## Project structure
-
+```powershell
+dotnet test tests/VpnCli.Tests.csproj -c Release
 ```
-vpn.ps1                          Main script (PowerShell + UI Automation)
-vpn.tests.ps1                    Pester 5 test suite (28 tests)
-package.json                     npm scripts (test runner)
-installer/vpn-cli.iss            Inno Setup installer script
-installer/vpn.bat                Batch wrapper for PATH usage
-.github/workflows/ci.yml         CI: runs tests on push/PR
-.github/workflows/release.yml    Release: builds installer, creates GitHub release, submits to winget
-winget-manifest/                 Winget package manifest
+
+The tests cover command routing, helper response parsing, import/export path handling, and error paths. They use a fake helper, so the Azure VPN Client and MSIX helper are not required for unit tests.
+
+## Project Structure
+
+```text
+src/Program.cs                    CLI entry point and prerequisite checks
+src/VpnCommands.cs                Testable command logic
+src/VpnHelperClient.cs            JSON/Process client for VpnPackagedHelper.exe
+src/vpn.csproj                    .NET Framework 4.8 executable project
+tests/*.cs                        xUnit test suite
+tests/VpnCli.Tests.csproj         Test project
+docs/                             Technical notes and investigation docs
+tools/vpn-packaged-helper/        MSIX helper source, manifest, and scripts
+package.json                      npm scripts
+installer/vpn-cli.iss             Inno Setup installer script
+.github/workflows/ci.yml          CI build/test workflow
+.github/workflows/release.yml     Release workflow and winget manifest generation
+winget-manifest/                  Historical winget package manifests
 ```
 
 ## Releasing
@@ -110,15 +146,11 @@ winget-manifest/                 Winget package manifest
 Tag a version to trigger the release workflow:
 
 ```bash
-git tag v0.0.2
-git push origin v0.0.2
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-This automatically:
-1. Runs tests
-2. Builds the Inno Setup installer
-3. Creates a GitHub Release with the `.exe` attached
-4. Submits to winget (requires `WINGET_PAT` repo secret)
+This automatically builds `vpn.exe`, builds the packaged helper, builds the Inno Setup installer, creates a GitHub Release, generates the winget manifest for the tagged version, and submits it to winget when `WINGET_PAT` is configured.
 
 ## License
 

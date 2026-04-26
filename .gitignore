@@ -1,8 +1,10 @@
 Output/
 .setup-done
+.dotnet_home/
 node_modules/
 *.exe
 *.pdb
 .claude/
 bin/
 obj/
+tools/vpn-packaged-helper/out/

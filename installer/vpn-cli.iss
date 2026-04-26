@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.0.1"
+  #define MyAppVersion "1.0.0"
 #endif
 
 [Setup]
@@ -20,6 +20,13 @@ UninstallDisplayName=AzureVPN-CLI
 
 [Files]
 Source: "..\src\bin\Release\net48\vpn.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\tools\vpn-packaged-helper\out\package\*"; DestDir: "{app}\helper"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Run]
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Add-AppxPackage -Register '{app}\helper\AppxManifest.xml' -ForceApplicationShutdown"""; Flags: runhidden waituntilterminated; StatusMsg: "Registering VPN packaged helper..."
+
+[UninstallRun]
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Get-AppxPackage VpnPackagedHelper -ErrorAction SilentlyContinue | Remove-AppxPackage"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveVpnPackagedHelper"
 
 [Registry]
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \

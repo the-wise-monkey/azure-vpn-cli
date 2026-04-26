@@ -1,92 +1,51 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using Xunit;
-using static VpnCli.Tests.TestHelpers;
+using VpnCli;
 
 namespace VpnCli.Tests
 {
-    public class ProfileParsingTests : IDisposable
+    public class HelperJsonTests
     {
-        private readonly string _dir;
-
-        public ProfileParsingTests()
+        [Fact]
+        public void ParsesProfiles()
         {
-            _dir = CreateTempDir();
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(_dir)) Directory.Delete(_dir, true);
+            string json = "{\"ok\":true,\"profiles\":[{\"name\":\"vpn-a\",\"status\":\"Connected\",\"type\":\"x\"},{\"name\":\"vpn-b\",\"status\":\"Disconnected\",\"type\":\"x\"}]}";
+            HelperResponse response = HelperJson.Parse(json);
+            Assert.True(response.Ok);
+            Assert.Equal(2, response.Profiles.Count);
+            Assert.Equal("vpn-a", response.Profiles[0].Name);
+            Assert.Equal("Connected", response.Profiles[0].Status);
         }
 
         [Fact]
-        public void MissingPhonebook_ReturnsEmpty()
+        public void ParsesError()
         {
-            var (cmds, _) = Build(Path.Combine(_dir, "missing.pbk"));
-            var profiles = cmds.GetVpnProfiles();
-            Assert.Empty(profiles);
+            string json = "{\"ok\":false,\"code\":\"ProfileNotFound\",\"message\":\"Profile not found: test\"}";
+            HelperResponse response = HelperJson.Parse(json);
+            Assert.False(response.Ok);
+            Assert.Equal("ProfileNotFound", response.Code);
+            Assert.Contains("test", response.Message);
         }
 
         [Fact]
-        public void EmptyPhonebook_ReturnsEmpty()
+        public void UnescapesStrings()
         {
-            string pbk = WritePhonebook(_dir, new string[0]);
-            var (cmds, _) = Build(pbk);
-            var profiles = cmds.GetVpnProfiles();
-            Assert.Empty(profiles);
+            string json = "{\"ok\":true,\"profile\":\"vpn \\\"quoted\\\"\",\"status\":\"Disconnected\"}";
+            HelperResponse response = HelperJson.Parse(json);
+            Assert.Equal("vpn \"quoted\"", response.Profile);
         }
 
         [Fact]
-        public void SingleProfile()
+        public void QuotesWindowsPathsWithoutDoublingSeparators()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, _) = Build(pbk);
-            var profiles = cmds.GetVpnProfiles();
-            Assert.Single(profiles);
-            Assert.Equal("my-vpn", profiles[0]);
+            string quoted = VpnHelperClient.Quote(@"C:\Users\me\Desktop\profile.AzureVpnProfile.xml");
+            Assert.Equal(@"""C:\Users\me\Desktop\profile.AzureVpnProfile.xml""", quoted);
         }
 
         [Fact]
-        public void MultipleProfiles_Sorted()
+        public void QuotesEmbeddedQuotes()
         {
-            string pbk = WritePhonebook(_dir, new[] { "zulu", "alpha", "mid" });
-            var (cmds, _) = Build(pbk);
-            var profiles = cmds.GetVpnProfiles();
-            Assert.Equal(3, profiles.Count);
-            Assert.Equal("alpha", profiles[0]);
-            Assert.Equal("mid", profiles[1]);
-            Assert.Equal("zulu", profiles[2]);
-        }
-
-        [Fact]
-        public void ExportProfile_DecodesXml()
-        {
-            string testXml = "<azvpnprofile><name>test</name></azvpnprofile>";
-            string pbk = WritePhonebook(_dir, new[] { "test" },
-                new Dictionary<string, string> { { "test", testXml } });
-            var (cmds, _) = Build(pbk);
-            string xml = cmds.ExportVpnProfile("test");
-            Assert.NotNull(xml);
-            Assert.Contains("<azvpnprofile>", xml);
-            Assert.Contains("test", xml);
-        }
-
-        [Fact]
-        public void ExportProfile_NoHexData_ReturnsNull()
-        {
-            string pbk = WritePhonebook(_dir, new[] { "test" });
-            var (cmds, _) = Build(pbk);
-            string xml = cmds.ExportVpnProfile("test");
-            Assert.Null(xml);
-        }
-
-        [Fact]
-        public void ExportProfile_MissingPhonebook_ReturnsNull()
-        {
-            var (cmds, _) = Build(Path.Combine(_dir, "missing.pbk"));
-            string xml = cmds.ExportVpnProfile("test");
-            Assert.Null(xml);
+            string quoted = VpnHelperClient.Quote("vpn \"prod\"");
+            Assert.Equal("\"vpn \\\"prod\\\"\"", quoted);
         }
     }
 }

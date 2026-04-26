@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
 using Xunit;
 using static VpnCli.Tests.TestHelpers;
@@ -11,23 +9,15 @@ namespace VpnCli.Tests
         [Fact]
         public void ShowsUsageText()
         {
-            var (cmds, output) = Build("nonexistent.pbk");
+            var (cmds, output, _) = Build();
             cmds.CmdDefault(null, null);
             Assert.Contains("Usage:", output.ToString());
         }
 
         [Fact]
-        public void ReturnsZero()
-        {
-            var (cmds, output) = Build("nonexistent.pbk");
-            int code = cmds.CmdDefault(null, null);
-            Assert.Equal(0, code);
-        }
-
-        [Fact]
         public void ListsAllCommands()
         {
-            var (cmds, output) = Build("nonexistent.pbk");
+            var (cmds, output, _) = Build();
             cmds.CmdDefault(null, null);
             string text = output.ToString();
             Assert.Contains("connect", text);
@@ -36,353 +26,217 @@ namespace VpnCli.Tests
             Assert.Contains("list", text);
             Assert.Contains("import", text);
             Assert.Contains("export", text);
-            Assert.Contains("setup", text);
+            Assert.Contains("delete", text);
         }
     }
 
-    public class ListTests : IDisposable
+    public class ListTests
     {
-        private readonly string _dir;
-
-        public ListTests()
-        {
-            _dir = CreateTempDir();
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(_dir)) Directory.Delete(_dir, true);
-        }
-
         [Fact]
-        public void NoPhonebook_SaysNoProfiles()
+        public void NoProfiles_SaysImport()
         {
-            var (cmds, output) = Build(Path.Combine(_dir, "missing.pbk"));
+            var helper = new FakeHelper();
+            helper.SetProfiles();
+            var (cmds, output, _) = Build(helper: helper);
             int code = cmds.CmdList();
             Assert.Equal(0, code);
-            Assert.Contains("No VPN profiles found", output.ToString());
+            Assert.Contains("No VPN profiles imported", output.ToString());
         }
 
         [Fact]
         public void ShowsProfilesWithStatus()
         {
-            string pbk = WritePhonebook(_dir, new[] { "vpn-prod", "my-vpn" });
-            string active = "Connected to\nmy-vpn\nCommand completed successfully.";
-            var (cmds, output) = Build(pbk, activeOutput: active);
+            var helper = new FakeHelper();
+            helper.SetProfiles(
+                new VpnProfileInfo { Name = "vpn-prod", Status = "Disconnected" },
+                new VpnProfileInfo { Name = "my-vpn", Status = "Connected" });
+            var (cmds, output, _) = Build(helper: helper);
             cmds.CmdList();
             string text = output.ToString();
             Assert.Contains("vpn-prod", text);
             Assert.Contains("Disconnected", text);
             Assert.Contains("my-vpn", text);
             Assert.Contains("Connected", text);
+            Assert.True(text.IndexOf("my-vpn") < text.IndexOf("vpn-prod"));
         }
 
         [Fact]
-        public void AllDisconnected()
+        public void HelperFailure_ReturnsOne()
         {
-            string pbk = WritePhonebook(_dir, new[] { "vpn-prod", "my-vpn" });
-            var (cmds, output) = Build(pbk);
-            cmds.CmdList();
-            string text = output.ToString();
-            Assert.Contains("vpn-prod", text);
-            Assert.Contains("my-vpn", text);
-            Assert.DoesNotContain("Connected\n", text.Replace("Disconnected", ""));
-        }
-
-        [Fact]
-        public void MultipleProfiles()
-        {
-            string pbk = WritePhonebook(_dir, new[] { "vpn-prod", "my-vpn", "vpn-dev" });
-            var (cmds, output) = Build(pbk);
-            cmds.CmdList();
-            string text = output.ToString();
-            Assert.Contains("vpn-prod", text);
-            Assert.Contains("my-vpn", text);
-            Assert.Contains("vpn-dev", text);
-        }
-
-        [Fact]
-        public void SortsAlphabetically()
-        {
-            string pbk = WritePhonebook(_dir, new[] { "vpn-zulu", "vpn-alpha" });
-            var (cmds, output) = Build(pbk);
-            cmds.CmdList();
-            string text = output.ToString();
-            int alphaPos = text.IndexOf("vpn-alpha");
-            int zuluPos = text.IndexOf("vpn-zulu");
-            Assert.True(alphaPos < zuluPos, "Profiles should be sorted alphabetically");
+            var helper = new FakeHelper();
+            helper.Fail("helper missing");
+            var (cmds, output, _) = Build(helper: helper);
+            int code = cmds.CmdList();
+            Assert.Equal(1, code);
+            Assert.Contains("helper missing", output.ToString());
         }
     }
 
-    public class ExportTests : IDisposable
+    public class ImportTests
     {
-        private readonly string _dir;
-        private readonly string _exportDir;
-
-        public ExportTests()
-        {
-            _dir = CreateTempDir();
-            _exportDir = CreateTempDir();
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(_dir)) Directory.Delete(_dir, true);
-            if (Directory.Exists(_exportDir)) Directory.Delete(_exportDir, true);
-        }
-
         [Fact]
-        public void NoName_ReturnsOne()
+        public void NoPath_ReturnsOne()
         {
-            var (cmds, output) = Build(Path.Combine(_dir, "test.pbk"));
-            int code = cmds.CmdExport(null);
+            var (cmds, output, _) = Build();
+            int code = cmds.CmdImport(null, null);
             Assert.Equal(1, code);
             Assert.Contains("Usage:", output.ToString());
         }
 
         [Fact]
-        public void UnknownProfile_ReturnsOne()
+        public void ImportsXml()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk);
-            int code = cmds.CmdExport("nope");
-            Assert.Equal(1, code);
-            Assert.Contains("not found", output.ToString());
-        }
-
-        [Fact]
-        public void ExportsProfileXml()
-        {
-            string testXml = "<azvpnprofile><name>my-vpn</name></azvpnprofile>";
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" },
-                new Dictionary<string, string> { { "my-vpn", testXml } });
-            var (cmds, output) = Build(pbk, exportDir: _exportDir);
-            int code = cmds.CmdExport("my-vpn");
+            var (cmds, output, helper) = Build();
+            int code = cmds.CmdImport("my-vpn.AzureVpnProfile.xml", null);
             Assert.Equal(0, code);
-            Assert.Contains("Exported to", output.ToString());
-
-            string outPath = Path.Combine(_exportDir, "my-vpn.AzureVpnProfile.xml");
-            Assert.True(File.Exists(outPath));
-            string content = File.ReadAllText(outPath);
-            Assert.Contains("<azvpnprofile>", content);
-            Assert.Contains("my-vpn", content);
-        }
-
-        [Fact]
-        public void NoThirdPartyInfo_ReturnsOne()
-        {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk);
-            int code = cmds.CmdExport("my-vpn");
-            Assert.Equal(1, code);
-            Assert.Contains("Failed to extract", output.ToString());
-        }
-
-        [Fact]
-        public void MissingPhonebook_ReturnsOne()
-        {
-            var (cmds, output) = Build(Path.Combine(_dir, "missing.pbk"));
-            int code = cmds.CmdExport("my-vpn");
-            Assert.Equal(1, code);
-            Assert.Contains("not found", output.ToString());
-        }
-    }
-
-    public class ImportTests : IDisposable
-    {
-        private readonly string _dir;
-
-        public ImportTests()
-        {
-            _dir = CreateTempDir();
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(_dir)) Directory.Delete(_dir, true);
-        }
-
-        [Fact]
-        public void NoName_ReturnsOne()
-        {
-            var (cmds, output) = Build(Path.Combine(_dir, "test.pbk"));
-            int code = cmds.CmdImport(null);
-            Assert.Equal(1, code);
-            Assert.Contains("Usage:", output.ToString());
-        }
-
-        [Fact]
-        public void NewProfile_Succeeds()
-        {
-            string pbk = WritePhonebook(_dir, new string[0]);
-            var (cmds, output) = Build(pbk, actionReturnCode: 0);
-            int code = cmds.CmdImport("my-vpn");
-            Assert.Equal(0, code);
+            Assert.Equal("import", helper.LastCommand);
+            Assert.Contains("my-vpn.AzureVpnProfile.xml", helper.LastPath);
             Assert.Contains("Imported", output.ToString());
         }
 
         [Fact]
-        public void AlreadyExists_Skips()
+        public void ImportsNameFromDefaultDesktopPath()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk);
-            int code = cmds.CmdImport("my-vpn");
-            Assert.Equal(0, code);
-            Assert.Contains("already exists", output.ToString());
+            string dir = CreateTempDir();
+            try
+            {
+                var (cmds, _, helper) = Build(exportDir: dir);
+                int code = cmds.CmdImport("my-vpn", null);
+                Assert.Equal(0, code);
+                Assert.Equal(Path.Combine(dir, "my-vpn.AzureVpnProfile.xml"), helper.LastPath);
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
         }
 
         [Fact]
-        public void ActionFails_ReturnsOne()
+        public void ImportsWithExplicitName()
         {
-            string pbk = WritePhonebook(_dir, new string[0]);
-            var (cmds, output) = Build(pbk, actionReturnCode: 1);
-            int code = cmds.CmdImport("my-vpn");
-            Assert.Equal(1, code);
-            Assert.Contains("Import failed", output.ToString());
+            var (cmds, _, helper) = Build();
+            int code = cmds.CmdImport("profile.xml", "renamed");
+            Assert.Equal(0, code);
+            Assert.Equal("renamed", helper.LastImportName);
         }
     }
 
-    public class ConnectDisconnectTests : IDisposable
+    public class ExportTests
     {
-        private readonly string _dir;
-
-        public ConnectDisconnectTests()
+        [Fact]
+        public void NoName_ReturnsOne()
         {
-            _dir = CreateTempDir();
+            var (cmds, output, _) = Build();
+            int code = cmds.CmdExport(null, null);
+            Assert.Equal(1, code);
+            Assert.Contains("Usage:", output.ToString());
         }
 
-        public void Dispose()
+        [Fact]
+        public void ExportsToDefaultDesktopPath()
         {
-            if (Directory.Exists(_dir)) Directory.Delete(_dir, true);
+            string dir = CreateTempDir();
+            try
+            {
+                var (cmds, output, helper) = Build(exportDir: dir);
+                int code = cmds.CmdExport("my-vpn", null);
+                Assert.Equal(0, code);
+                Assert.Equal(Path.Combine(dir, "my-vpn.AzureVpnProfile.xml"), helper.LastPath);
+                Assert.Contains("Exported to", output.ToString());
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
         }
+    }
 
+    public class ConnectDisconnectStatusTests
+    {
         [Fact]
         public void Connect_Succeeds()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk, actionReturnCode: 0);
+            var (cmds, output, helper) = Build();
             int code = cmds.CmdDefault("my-vpn", "connect");
             Assert.Equal(0, code);
+            Assert.Equal("connect", helper.LastCommand);
+            Assert.Contains("Connected", output.ToString());
         }
 
         [Fact]
-        public void Connect_Fails_ReturnsOne()
+        public void Connect_AlreadyConnected_PrintsIdempotentMessage()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk, actionReturnCode: 1);
+            var helper = new FakeHelper();
+            helper.NextResponse = new HelperResponse
+            {
+                Ok = true,
+                Result = "AlreadyConnected",
+                Status = "Connected",
+                Profile = "my-vpn"
+            };
+            var (cmds, output, _) = Build(helper: helper);
             int code = cmds.CmdDefault("my-vpn", "connect");
-            Assert.Equal(1, code);
-            Assert.Contains("Action failed", output.ToString());
+            Assert.Equal(0, code);
+            Assert.Contains("Already connected.", output.ToString());
         }
 
         [Fact]
         public void Disconnect_Succeeds()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk, actionReturnCode: 0);
+            var (cmds, output, helper) = Build();
             int code = cmds.CmdDefault("my-vpn", "disconnect");
             Assert.Equal(0, code);
-        }
-
-        [Fact]
-        public void Disconnect_Fails_ReturnsOne()
-        {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk, actionReturnCode: 1);
-            int code = cmds.CmdDefault("my-vpn", "disconnect");
-            Assert.Equal(1, code);
-            Assert.Contains("Action failed", output.ToString());
-        }
-    }
-
-    public class StatusTests : IDisposable
-    {
-        private readonly string _dir;
-
-        public StatusTests()
-        {
-            _dir = CreateTempDir();
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(_dir)) Directory.Delete(_dir, true);
-        }
-
-        [Fact]
-        public void Connected()
-        {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            string active = "Connected to\nmy-vpn\nCommand completed successfully.";
-            var (cmds, output) = Build(pbk, activeOutput: active);
-            int code = cmds.CmdDefault("my-vpn", "status");
-            Assert.Equal(0, code);
-            Assert.Contains("Connected", output.ToString());
-        }
-
-        [Fact]
-        public void Disconnected()
-        {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk);
-            int code = cmds.CmdDefault("my-vpn", "status");
-            Assert.Equal(0, code);
+            Assert.Equal("disconnect", helper.LastCommand);
             Assert.Contains("Disconnected", output.ToString());
         }
-    }
 
-    public class ErrorHandlingTests : IDisposable
-    {
-        private readonly string _dir;
-
-        public ErrorHandlingTests()
+        [Fact]
+        public void Disconnect_AlreadyDisconnected_PrintsIdempotentMessage()
         {
-            _dir = CreateTempDir();
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(_dir)) Directory.Delete(_dir, true);
+            var helper = new FakeHelper();
+            helper.NextResponse = new HelperResponse
+            {
+                Ok = true,
+                Result = "AlreadyDisconnected",
+                Status = "Disconnected",
+                Profile = "my-vpn"
+            };
+            var (cmds, output, _) = Build(helper: helper);
+            int code = cmds.CmdDefault("my-vpn", "disconnect");
+            Assert.Equal(0, code);
+            Assert.Contains("Already disconnected.", output.ToString());
         }
 
         [Fact]
-        public void UnknownProfile_Connect()
+        public void Status_Succeeds()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk);
-            int code = cmds.CmdDefault("nope", "connect");
-            Assert.Equal(1, code);
-            Assert.Contains("not found", output.ToString());
+            var (cmds, output, helper) = Build();
+            int code = cmds.CmdDefault("my-vpn", "status");
+            Assert.Equal(0, code);
+            Assert.Equal("status", helper.LastCommand);
+            Assert.Contains("Disconnected", output.ToString());
         }
 
         [Fact]
         public void UnknownAction()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk);
+            var (cmds, output, _) = Build();
             int code = cmds.CmdDefault("my-vpn", "restart");
             Assert.Equal(1, code);
             Assert.Contains("Unknown action", output.ToString());
         }
+    }
 
+    public class DeleteTests
+    {
         [Fact]
-        public void UnknownProfile_Status()
+        public void Delete_Succeeds()
         {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk);
-            int code = cmds.CmdDefault("nope", "status");
-            Assert.Equal(1, code);
-            Assert.Contains("not found", output.ToString());
-        }
-
-        [Fact]
-        public void UnknownProfile_Disconnect()
-        {
-            string pbk = WritePhonebook(_dir, new[] { "my-vpn" });
-            var (cmds, output) = Build(pbk);
-            int code = cmds.CmdDefault("nope", "disconnect");
-            Assert.Equal(1, code);
-            Assert.Contains("not found", output.ToString());
+            var (cmds, output, helper) = Build();
+            int code = cmds.CmdDelete("my-vpn");
+            Assert.Equal(0, code);
+            Assert.Equal("delete", helper.LastCommand);
+            Assert.Contains("Deleted", output.ToString());
         }
     }
 }

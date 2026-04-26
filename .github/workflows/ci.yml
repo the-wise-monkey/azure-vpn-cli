@@ -12,6 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build packaged helper
+        shell: pwsh
+        run: .\tools\vpn-packaged-helper\scripts\Build-Helper.ps1 -Version 1.0.0
+
       - name: Build
         shell: cmd
         run: dotnet build src\vpn.csproj -c Release

@@ -22,6 +22,10 @@ jobs:
         shell: cmd
         run: dotnet build src\vpn.csproj -c Release
 
+      - name: Build packaged helper
+        shell: pwsh
+        run: .\tools\vpn-packaged-helper\scripts\Build-Helper.ps1 -Version ${{ steps.version.outputs.version }}
+
       - name: Build Inno Setup installer
         shell: cmd
         run: iscc /DMyAppVersion=${{ steps.version.outputs.version }} installer\vpn-cli.iss
@@ -80,8 +84,8 @@ jobs:
           PackageUrl: https://github.com/the-wise-monkey/azure-vpn-cli
           License: MIT
           LicenseUrl: https://github.com/the-wise-monkey/azure-vpn-cli/blob/main/LICENSE
-          ShortDescription: CLI wrapper for Azure VPN Client on Windows
-          Description: Command-line interface for the Azure VPN Client on Windows. Automates connect, disconnect, import, export, and status operations using UI Automation.
+          ShortDescription: Helper-backed CLI for Azure VPN Client profiles on Windows
+          Description: Command-line interface for helper-owned Azure VPN Client profiles on Windows. Uses a packaged VPN helper instead of UI Automation.
           Tags:
             - vpn
             - azure
