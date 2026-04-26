@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using VpnCli;
 
@@ -14,41 +13,35 @@ namespace VpnCli.Tests
             return dir;
         }
 
-        internal static (VpnCommands cmds, StringWriter output, FakeHelper helper) Build(
+        internal static (VpnCommands cmds, StringWriter output, FakeAgent agent) Build(
             string exportDir = null,
-            FakeHelper helper = null)
+            FakeAgent agent = null)
         {
             var output = new StringWriter();
-            helper = helper ?? new FakeHelper();
+            agent = agent ?? new FakeAgent();
             var cmds = new VpnCommands(
-                helper,
+                agent,
                 exportDir ?? Path.GetTempPath(),
                 output);
-            return (cmds, output, helper);
+            return (cmds, output, agent);
         }
     }
 
-    internal class FakeHelper : IVpnHelperClient
+    internal class FakeAgent : IVpnAgent
     {
-        public HelperResponse NextResponse { get; set; }
+        public AgentResponse NextResponse { get; set; }
         public string LastCommand { get; private set; }
         public string LastName { get; private set; }
         public string LastPath { get; private set; }
         public string LastImportName { get; private set; }
 
-        public HelperResponse Health()
-        {
-            LastCommand = "health";
-            return Response();
-        }
-
-        public HelperResponse List()
+        public AgentResponse List()
         {
             LastCommand = "list";
             return Response();
         }
 
-        public HelperResponse Import(string xmlPath, string name)
+        public AgentResponse Import(string xmlPath, string name)
         {
             LastCommand = "import";
             LastPath = xmlPath;
@@ -56,7 +49,7 @@ namespace VpnCli.Tests
             return Response(profile: name ?? "imported-vpn");
         }
 
-        public HelperResponse Export(string name, string outputPath)
+        public AgentResponse Export(string name, string outputPath)
         {
             LastCommand = "export";
             LastName = name;
@@ -64,44 +57,44 @@ namespace VpnCli.Tests
             return Response(profile: name, path: outputPath);
         }
 
-        public HelperResponse Status(string name)
+        public AgentResponse Status(string name)
         {
             LastCommand = "status";
             LastName = name;
             return Response(profile: name, status: "Disconnected");
         }
 
-        public HelperResponse Connect(string name)
+        public AgentResponse Connect(string name)
         {
             LastCommand = "connect";
             LastName = name;
             return Response(profile: name, status: "Connected");
         }
 
-        public HelperResponse Disconnect(string name)
+        public AgentResponse Disconnect(string name)
         {
             LastCommand = "disconnect";
             LastName = name;
             return Response(profile: name, status: "Disconnected");
         }
 
-        public HelperResponse Delete(string name)
+        public AgentResponse Delete(string name)
         {
             LastCommand = "delete";
             LastName = name;
             return Response(profile: name, status: "Deleted");
         }
 
-        private HelperResponse Response(string profile = "my-vpn", string status = "Disconnected", string path = null)
+        private AgentResponse Response(string profile = "my-vpn", string status = "Disconnected", string path = null)
         {
             if (NextResponse != null)
             {
-                HelperResponse response = NextResponse;
+                AgentResponse response = NextResponse;
                 NextResponse = null;
                 return response;
             }
 
-            return new HelperResponse
+            return new AgentResponse
             {
                 Ok = true,
                 Code = "Ok",
@@ -114,14 +107,14 @@ namespace VpnCli.Tests
 
         internal void SetProfiles(params VpnProfileInfo[] profiles)
         {
-            var response = new HelperResponse { Ok = true };
+            var response = new AgentResponse { Ok = true };
             response.Profiles.AddRange(profiles);
             NextResponse = response;
         }
 
         internal void Fail(string message = "failed")
         {
-            NextResponse = new HelperResponse
+            NextResponse = new AgentResponse
             {
                 Ok = false,
                 Code = "Failed",

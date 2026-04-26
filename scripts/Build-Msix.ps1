@@ -5,9 +5,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$helperRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent $PSScriptRoot
 if (-not $OutputRoot) {
-    $OutputRoot = Join-Path $helperRoot "out"
+    $OutputRoot = Join-Path $repoRoot "out"
 }
 
 function Get-WindowsKitTool {
@@ -40,7 +40,7 @@ function Get-WindowsWinmd {
     return $winmd.FullName
 }
 
-function New-HelperAsset {
+function New-Asset {
     param(
         [string]$Path,
         [int]$Width,
@@ -88,10 +88,10 @@ function Convert-PackageVersion {
 
 $packageDir = Join-Path $OutputRoot "package"
 $assetsDir = Join-Path $packageDir "Assets"
-$source = Join-Path $helperRoot "src\VpnPackagedHelper.cs"
-$manifestSource = Join-Path $helperRoot "manifests\AppxManifest.xml"
-$exe = Join-Path $OutputRoot "VpnPackagedHelper.exe"
-$msix = Join-Path $OutputRoot "VpnPackagedHelper.msix"
+$srcDir = Join-Path $repoRoot "src"
+$manifestSource = Join-Path $repoRoot "manifests\AppxManifest.xml"
+$exe = Join-Path $OutputRoot "vpn.exe"
+$msix = Join-Path $OutputRoot "AzureVPN-CLI.msix"
 $packageVersion = Convert-PackageVersion $Version
 
 if (Test-Path -LiteralPath $OutputRoot) {
@@ -108,27 +108,29 @@ $systemRuntime = Join-Path $framework "System.Runtime.dll"
 $windowsRuntime = Join-Path $framework "System.Runtime.WindowsRuntime.dll"
 $interopRuntime = Join-Path $framework "System.Runtime.InteropServices.WindowsRuntime.dll"
 
+$sources = Get-ChildItem -Path $srcDir -Filter "*.cs" -File | Select-Object -ExpandProperty FullName
+
 & $csc /nologo /platform:x64 /target:exe /out:$exe `
     /r:$winmd `
     /r:$systemRuntime `
     /r:$windowsRuntime `
     /r:$interopRuntime `
-    $source
+    $sources
 
 if ($LASTEXITCODE -ne 0) {
     throw "csc failed with exit code $LASTEXITCODE"
 }
 
-Copy-Item -LiteralPath $exe -Destination (Join-Path $packageDir "VpnPackagedHelper.exe") -Force
+Copy-Item -LiteralPath $exe -Destination (Join-Path $packageDir "vpn.exe") -Force
 
 $manifestDestination = Join-Path $packageDir "AppxManifest.xml"
 [xml]$manifest = Get-Content -LiteralPath $manifestSource -Raw
 $manifest.Package.Identity.Version = $packageVersion
 $manifest.Save($manifestDestination)
 
-New-HelperAsset -Path (Join-Path $assetsDir "StoreLogo.png") -Width 50 -Height 50
-New-HelperAsset -Path (Join-Path $assetsDir "Square44x44Logo.png") -Width 44 -Height 44
-New-HelperAsset -Path (Join-Path $assetsDir "Square150x150Logo.png") -Width 150 -Height 150
+New-Asset -Path (Join-Path $assetsDir "StoreLogo.png") -Width 50 -Height 50
+New-Asset -Path (Join-Path $assetsDir "Square44x44Logo.png") -Width 44 -Height 44
+New-Asset -Path (Join-Path $assetsDir "Square150x150Logo.png") -Width 150 -Height 150
 
 & $makeappx pack /d $packageDir /p $msix /o
 if ($LASTEXITCODE -ne 0) {

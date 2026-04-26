@@ -7,14 +7,14 @@
   IgnorableNamespaces="uap uap5 rescap">
 
   <Identity
-    Name="VpnPackagedHelper"
-    Publisher="CN=VpnPackagedHelper"
+    Name="TheWiseMonkey.AzureVPNCLI"
+    Publisher="CN=TheWiseMonkey"
     Version="1.0.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>VPN Packaged Helper</DisplayName>
-    <PublisherDisplayName>VPN Packaged Helper</PublisherDisplayName>
+    <DisplayName>AzureVPN-CLI</DisplayName>
+    <PublisherDisplayName>The Wise Monkey</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -32,21 +32,21 @@
   <Applications>
     <Application
       Id="App"
-      Executable="VpnPackagedHelper.exe"
+      Executable="vpn.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="VPN Packaged Helper"
-        Description="Packaged helper for Azure VPN CLI"
+        DisplayName="AzureVPN-CLI"
+        Description="Command-line interface for Azure VPN profiles"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png" />
       <Extensions>
         <uap5:Extension
           Category="windows.appExecutionAlias"
-          Executable="VpnPackagedHelper.exe"
+          Executable="vpn.exe"
           EntryPoint="Windows.FullTrustApplication">
           <uap5:AppExecutionAlias>
-            <uap5:ExecutionAlias Alias="VpnPackagedHelper.exe" />
+            <uap5:ExecutionAlias Alias="vpn.exe" />
           </uap5:AppExecutionAlias>
         </uap5:Extension>
       </Extensions>

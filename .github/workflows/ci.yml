@@ -12,14 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build packaged helper
+      - name: Build MSIX
         shell: pwsh
-        run: .\tools\vpn-packaged-helper\scripts\Build-Helper.ps1 -Version 1.0.0
-
-      - name: Build
-        shell: cmd
-        run: dotnet build src\vpn.csproj -c Release
+        run: .\scripts\Build-Msix.ps1 -Version 1.0.0
 
       - name: Test
         shell: cmd
-        run: dotnet test tests\VpnCli.Tests.csproj -c Release --no-restore
+        run: dotnet test tests\VpnCli.Tests.csproj -c Release

@@ -1,9 +1,9 @@
 {
   "name": "azure-vpn-cli",
   "version": "1.0.0",
-  "description": "CLI for Azure VPN Client on Windows",
+  "description": "CLI for Azure VPN profiles on Windows",
   "scripts": {
-    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/vpn-packaged-helper/scripts/Build-Helper.ps1 -Version 1.0.0 && dotnet build src/vpn.csproj -c Release",
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Build-Msix.ps1 -Version 1.0.0",
     "test": "dotnet test tests/VpnCli.Tests.csproj -c Release"
   }
 }

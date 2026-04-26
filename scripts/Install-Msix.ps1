@@ -6,13 +6,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$helperRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent $PSScriptRoot
 if (-not $OutputRoot) {
-    $OutputRoot = Join-Path $helperRoot "out"
+    $OutputRoot = Join-Path $repoRoot "out"
 }
 
 $manifest = Join-Path $OutputRoot "package\AppxManifest.xml"
-$msix = Join-Path $OutputRoot "VpnPackagedHelper.msix"
+$msix = Join-Path $OutputRoot "AzureVPN-CLI.msix"
 
 try {
     if ($RegisterLoose) {
@@ -25,7 +25,7 @@ try {
         Add-AppxPackage -Path $msix -ForceApplicationShutdown -ErrorAction Stop
     }
 
-    Get-AppxPackage VpnPackagedHelper | Select-Object Name, PackageFullName, PackageFamilyName, InstallLocation
+    Get-AppxPackage TheWiseMonkey.AzureVPNCLI | Select-Object Name, PackageFullName, PackageFamilyName, InstallLocation
 }
 catch {
     Write-Error $_

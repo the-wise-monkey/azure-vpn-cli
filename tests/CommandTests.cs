@@ -35,9 +35,9 @@ namespace VpnCli.Tests
         [Fact]
         public void NoProfiles_SaysImport()
         {
-            var helper = new FakeHelper();
-            helper.SetProfiles();
-            var (cmds, output, _) = Build(helper: helper);
+            var agent = new FakeAgent();
+            agent.SetProfiles();
+            var (cmds, output, _) = Build(agent: agent);
             int code = cmds.CmdList();
             Assert.Equal(0, code);
             Assert.Contains("No VPN profiles imported", output.ToString());
@@ -46,11 +46,11 @@ namespace VpnCli.Tests
         [Fact]
         public void ShowsProfilesWithStatus()
         {
-            var helper = new FakeHelper();
-            helper.SetProfiles(
+            var agent = new FakeAgent();
+            agent.SetProfiles(
                 new VpnProfileInfo { Name = "vpn-prod", Status = "Disconnected" },
                 new VpnProfileInfo { Name = "my-vpn", Status = "Connected" });
-            var (cmds, output, _) = Build(helper: helper);
+            var (cmds, output, _) = Build(agent: agent);
             cmds.CmdList();
             string text = output.ToString();
             Assert.Contains("vpn-prod", text);
@@ -61,14 +61,14 @@ namespace VpnCli.Tests
         }
 
         [Fact]
-        public void HelperFailure_ReturnsOne()
+        public void AgentFailure_ReturnsOne()
         {
-            var helper = new FakeHelper();
-            helper.Fail("helper missing");
-            var (cmds, output, _) = Build(helper: helper);
+            var agent = new FakeAgent();
+            agent.Fail("agent missing");
+            var (cmds, output, _) = Build(agent: agent);
             int code = cmds.CmdList();
             Assert.Equal(1, code);
-            Assert.Contains("helper missing", output.ToString());
+            Assert.Contains("agent missing", output.ToString());
         }
     }
 
@@ -86,11 +86,11 @@ namespace VpnCli.Tests
         [Fact]
         public void ImportsXml()
         {
-            var (cmds, output, helper) = Build();
+            var (cmds, output, agent) = Build();
             int code = cmds.CmdImport("my-vpn.AzureVpnProfile.xml", null);
             Assert.Equal(0, code);
-            Assert.Equal("import", helper.LastCommand);
-            Assert.Contains("my-vpn.AzureVpnProfile.xml", helper.LastPath);
+            Assert.Equal("import", agent.LastCommand);
+            Assert.Contains("my-vpn.AzureVpnProfile.xml", agent.LastPath);
             Assert.Contains("Imported", output.ToString());
         }
 
@@ -100,10 +100,10 @@ namespace VpnCli.Tests
             string dir = CreateTempDir();
             try
             {
-                var (cmds, _, helper) = Build(exportDir: dir);
+                var (cmds, _, agent) = Build(exportDir: dir);
                 int code = cmds.CmdImport("my-vpn", null);
                 Assert.Equal(0, code);
-                Assert.Equal(Path.Combine(dir, "my-vpn.AzureVpnProfile.xml"), helper.LastPath);
+                Assert.Equal(Path.Combine(dir, "my-vpn.AzureVpnProfile.xml"), agent.LastPath);
             }
             finally
             {
@@ -114,10 +114,10 @@ namespace VpnCli.Tests
         [Fact]
         public void ImportsWithExplicitName()
         {
-            var (cmds, _, helper) = Build();
+            var (cmds, _, agent) = Build();
             int code = cmds.CmdImport("profile.xml", "renamed");
             Assert.Equal(0, code);
-            Assert.Equal("renamed", helper.LastImportName);
+            Assert.Equal("renamed", agent.LastImportName);
         }
     }
 
@@ -138,10 +138,10 @@ namespace VpnCli.Tests
             string dir = CreateTempDir();
             try
             {
-                var (cmds, output, helper) = Build(exportDir: dir);
+                var (cmds, output, agent) = Build(exportDir: dir);
                 int code = cmds.CmdExport("my-vpn", null);
                 Assert.Equal(0, code);
-                Assert.Equal(Path.Combine(dir, "my-vpn.AzureVpnProfile.xml"), helper.LastPath);
+                Assert.Equal(Path.Combine(dir, "my-vpn.AzureVpnProfile.xml"), agent.LastPath);
                 Assert.Contains("Exported to", output.ToString());
             }
             finally
@@ -156,25 +156,25 @@ namespace VpnCli.Tests
         [Fact]
         public void Connect_Succeeds()
         {
-            var (cmds, output, helper) = Build();
+            var (cmds, output, agent) = Build();
             int code = cmds.CmdDefault("my-vpn", "connect");
             Assert.Equal(0, code);
-            Assert.Equal("connect", helper.LastCommand);
+            Assert.Equal("connect", agent.LastCommand);
             Assert.Contains("Connected", output.ToString());
         }
 
         [Fact]
         public void Connect_AlreadyConnected_PrintsIdempotentMessage()
         {
-            var helper = new FakeHelper();
-            helper.NextResponse = new HelperResponse
+            var agent = new FakeAgent();
+            agent.NextResponse = new AgentResponse
             {
                 Ok = true,
                 Result = "AlreadyConnected",
                 Status = "Connected",
                 Profile = "my-vpn"
             };
-            var (cmds, output, _) = Build(helper: helper);
+            var (cmds, output, _) = Build(agent: agent);
             int code = cmds.CmdDefault("my-vpn", "connect");
             Assert.Equal(0, code);
             Assert.Contains("Already connected.", output.ToString());
@@ -183,25 +183,25 @@ namespace VpnCli.Tests
         [Fact]
         public void Disconnect_Succeeds()
         {
-            var (cmds, output, helper) = Build();
+            var (cmds, output, agent) = Build();
             int code = cmds.CmdDefault("my-vpn", "disconnect");
             Assert.Equal(0, code);
-            Assert.Equal("disconnect", helper.LastCommand);
+            Assert.Equal("disconnect", agent.LastCommand);
             Assert.Contains("Disconnected", output.ToString());
         }
 
         [Fact]
         public void Disconnect_AlreadyDisconnected_PrintsIdempotentMessage()
         {
-            var helper = new FakeHelper();
-            helper.NextResponse = new HelperResponse
+            var agent = new FakeAgent();
+            agent.NextResponse = new AgentResponse
             {
                 Ok = true,
                 Result = "AlreadyDisconnected",
                 Status = "Disconnected",
                 Profile = "my-vpn"
             };
-            var (cmds, output, _) = Build(helper: helper);
+            var (cmds, output, _) = Build(agent: agent);
             int code = cmds.CmdDefault("my-vpn", "disconnect");
             Assert.Equal(0, code);
             Assert.Contains("Already disconnected.", output.ToString());
@@ -210,10 +210,10 @@ namespace VpnCli.Tests
         [Fact]
         public void Status_Succeeds()
         {
-            var (cmds, output, helper) = Build();
+            var (cmds, output, agent) = Build();
             int code = cmds.CmdDefault("my-vpn", "status");
             Assert.Equal(0, code);
-            Assert.Equal("status", helper.LastCommand);
+            Assert.Equal("status", agent.LastCommand);
             Assert.Contains("Disconnected", output.ToString());
         }
 
@@ -232,10 +232,10 @@ namespace VpnCli.Tests
         [Fact]
         public void Delete_Succeeds()
         {
-            var (cmds, output, helper) = Build();
+            var (cmds, output, agent) = Build();
             int code = cmds.CmdDelete("my-vpn");
             Assert.Equal(0, code);
-            Assert.Equal("delete", helper.LastCommand);
+            Assert.Equal("delete", agent.LastCommand);
             Assert.Contains("Deleted", output.ToString());
         }
     }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -7,23 +6,20 @@ namespace VpnCli
 {
     internal class VpnCommands
     {
-        private readonly IVpnHelperClient _helper;
+        private readonly IVpnAgent _agent;
         private readonly string _exportDir;
         private readonly TextWriter _output;
 
-        internal VpnCommands(
-            IVpnHelperClient helper,
-            string exportDir,
-            TextWriter output)
+        internal VpnCommands(IVpnAgent agent, string exportDir, TextWriter output)
         {
-            _helper = helper;
+            _agent = agent;
             _exportDir = exportDir;
             _output = output;
         }
 
         internal int CmdList()
         {
-            HelperResponse response = _helper.List();
+            AgentResponse response = _agent.List();
             if (!EnsureOk(response))
             {
                 return 1;
@@ -53,7 +49,7 @@ namespace VpnCli
             }
 
             string resolvedPath = ResolveImportPath(xmlPath);
-            HelperResponse response = _helper.Import(resolvedPath, name);
+            AgentResponse response = _agent.Import(resolvedPath, name);
             if (!EnsureOk(response))
             {
                 return 1;
@@ -75,7 +71,7 @@ namespace VpnCli
                 ? Path.Combine(_exportDir, name + ".AzureVpnProfile.xml")
                 : Path.GetFullPath(outputPath);
 
-            HelperResponse response = _helper.Export(name, resolvedOutput);
+            AgentResponse response = _agent.Export(name, resolvedOutput);
             if (!EnsureOk(response))
             {
                 return 1;
@@ -93,7 +89,7 @@ namespace VpnCli
                 return 1;
             }
 
-            HelperResponse response = _helper.Delete(name);
+            AgentResponse response = _agent.Delete(name);
             if (!EnsureOk(response))
             {
                 return 1;
@@ -112,24 +108,24 @@ namespace VpnCli
             }
 
             action = action.ToLowerInvariant();
-            HelperResponse response;
+            AgentResponse response;
             switch (action)
             {
                 case "status":
-                    response = _helper.Status(name);
+                    response = _agent.Status(name);
                     if (!EnsureOk(response)) return 1;
                     _output.WriteLine(response.Status);
                     return 0;
 
                 case "connect":
-                    response = _helper.Connect(name);
+                    response = _agent.Connect(name);
                     if (!EnsureOk(response)) return 1;
                     _output.WriteLine(response.Result == "AlreadyConnected" ? "Already connected." :
                         response.Status == "Connected" ? "Connected" : response.Result);
                     return 0;
 
                 case "disconnect":
-                    response = _helper.Disconnect(name);
+                    response = _agent.Disconnect(name);
                     if (!EnsureOk(response)) return 1;
                     _output.WriteLine(response.Result == "AlreadyDisconnected" ? "Already disconnected." :
                         response.Status == "Disconnected" ? "Disconnected" : response.Result);
@@ -145,14 +141,13 @@ namespace VpnCli
         {
             _output.WriteLine();
             _output.WriteLine("  Usage:");
-            _output.WriteLine("    vpn import <xml> [name]      Import an Azure VPN Client XML profile into the packaged helper");
-            _output.WriteLine("    vpn list                     List imported helper-owned profiles");
+            _output.WriteLine("    vpn import <xml> [name]      Import an Azure VPN profile XML");
+            _output.WriteLine("    vpn list                     List imported profiles");
             _output.WriteLine("    vpn <name> connect           Connect a profile");
             _output.WriteLine("    vpn <name> disconnect        Disconnect a profile");
             _output.WriteLine("    vpn <name> status            Show connection status");
-            _output.WriteLine("    vpn export <name> [xml]      Export imported profile XML");
-            _output.WriteLine("    vpn delete <name>            Delete an imported profile");
-            _output.WriteLine("    vpn setup                    Re-check prerequisites");
+            _output.WriteLine("    vpn export <name> [xml]      Export profile XML");
+            _output.WriteLine("    vpn delete <name>            Delete a profile");
             _output.WriteLine();
             _output.WriteLine("  Examples:");
             _output.WriteLine("    vpn import .\\my-vpn.AzureVpnProfile.xml");
@@ -162,7 +157,7 @@ namespace VpnCli
             _output.WriteLine();
         }
 
-        private bool EnsureOk(HelperResponse response)
+        private bool EnsureOk(AgentResponse response)
         {
             if (response != null && response.Ok)
             {
@@ -170,7 +165,7 @@ namespace VpnCli
             }
 
             string message = response == null
-                ? "Helper failed without a response."
+                ? "Agent failed without a response."
                 : !string.IsNullOrEmpty(response.Message)
                     ? response.Message
                     : response.Code;
@@ -198,41 +193,6 @@ namespace VpnCli
             }
 
             return Path.GetFullPath(expanded);
-        }
-    }
-
-    internal interface IVpnHelperClient
-    {
-        HelperResponse Health();
-        HelperResponse List();
-        HelperResponse Import(string xmlPath, string name);
-        HelperResponse Export(string name, string outputPath);
-        HelperResponse Status(string name);
-        HelperResponse Connect(string name);
-        HelperResponse Disconnect(string name);
-        HelperResponse Delete(string name);
-    }
-
-    internal class VpnProfileInfo
-    {
-        public string Name { get; set; }
-        public string Status { get; set; }
-    }
-
-    internal class HelperResponse
-    {
-        public bool Ok { get; set; }
-        public string Code { get; set; }
-        public string Message { get; set; }
-        public string Result { get; set; }
-        public string Profile { get; set; }
-        public string Status { get; set; }
-        public string Path { get; set; }
-        public List<VpnProfileInfo> Profiles { get; private set; }
-
-        public HelperResponse()
-        {
-            Profiles = new List<VpnProfileInfo>();
         }
     }
 }
